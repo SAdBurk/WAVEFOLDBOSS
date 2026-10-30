@@ -1,0 +1,46 @@
+name: Build Wave Folding Boss
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "build/WaveFoldingBoss_artefacts/Release"
+          Compress-Archive -Path "$dir/VST3", "$dir/Standalone" -DestinationPath WaveFoldingBoss-Windows.zip
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd build/WaveFoldingBoss_artefacts/Release
+          zip -r -y "$GITHUB_WORKSPACE/WaveFoldingBoss-macOS.zip" VST3 AU Standalone
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WaveFoldingBoss-${{ matrix.name }}
+          path: WaveFoldingBoss-*.zip
